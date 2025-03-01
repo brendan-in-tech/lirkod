@@ -1,43 +1,70 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView } from 'react-native';
 import styled from 'styled-components/native';
 import type { Album, Song } from '../../types/music';
+import { View, TouchableOpacity, Image, Text } from 'react-native';
+import { SearchResults } from '../search/SearchResults';
 
-const Container = styled.View`
+interface ContainerProps {
+  $isRTL: boolean;
+}
+
+interface SongItemProps {
+  $isRTL: boolean;
+}
+
+const Container = styled.View<ContainerProps>`
   flex: 1;
-  padding: 24px;
+  background-color: #f9fafb;
+  direction: ${(props: ContainerProps) => props.$isRTL ? 'rtl' : 'ltr'};
+`;
+
+const ScrollContainer = styled.ScrollView`
+  flex: 1;
+`;
+
+const ContentContainer = styled.View`
+  flex: 1;
+  padding-bottom: 24px;
+`;
+
+const Section = styled.View`
+  margin-bottom: 32px;
+`;
+
+const SectionHeader = styled.View<ContainerProps>`
+  flex-direction: ${(props: ContainerProps) => props.$isRTL ? 'row-reverse' : 'row'};
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 `;
 
 const SectionTitle = styled.Text`
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: bold;
   color: #111827;
-  margin-bottom: 16px;
 `;
 
 const AlbumGrid = styled.View`
   flex-direction: row;
   flex-wrap: wrap;
   margin: 0 -8px;
-  margin-bottom: 32px;
 `;
 
-const AlbumCard = styled.TouchableOpacity`
-  width: 25%;
+const AlbumItem = styled.TouchableOpacity`
+  width: 33.33%;
   padding: 8px;
-`;
-
-const AlbumContent = styled.View`
-  background-color: white;
-  padding: 16px;
-  border-radius: 8px;
 `;
 
 const AlbumCover = styled.Image`
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 8px;
+`;
+
+const AlbumInfo = styled.View<ContainerProps>`
+  align-items: ${(props: ContainerProps) => props.$isRTL ? 'flex-end' : 'flex-start'};
 `;
 
 const AlbumTitle = styled.Text`
@@ -47,34 +74,35 @@ const AlbumTitle = styled.Text`
   margin-bottom: 4px;
 `;
 
-const ChoreographerText = styled.Text`
-  font-size: 12px;
-  color: #4b5563;
-  margin-bottom: 2px;
-`;
-
-const SubtitleText = styled.Text`
+const AlbumArtist = styled.Text`
   font-size: 12px;
   color: #6b7280;
 `;
 
-const RecentlyPlayedList = styled.View`
-  margin-top: 24px;
-`;
+const RecentlyPlayedList = styled.View``;
 
-const SongItem = styled.TouchableOpacity`
-  flex-direction: row;
-  justify-content: space-between;
+const SongItem = styled.TouchableOpacity<SongItemProps>`
+  flex-direction: ${(props: SongItemProps) => props.$isRTL ? 'row-reverse' : 'row'};
   align-items: center;
-  background-color: white;
-  padding: 16px;
+  padding: 12px;
   border-radius: 8px;
   margin-bottom: 8px;
+
+  &:hover {
+    background-color: #f3f4f6;
+  }
 `;
 
-const SongInfo = styled.View`
+const SongCover = styled.Image<SongItemProps>`
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  margin: ${(props: SongItemProps) => props.$isRTL ? '0 0 0 12px' : '0 12px 0 0'};
+`;
+
+const SongInfo = styled.View<SongItemProps>`
   flex: 1;
-  margin-right: 16px;
+  align-items: ${(props: SongItemProps) => props.$isRTL ? 'flex-end' : 'flex-start'};
 `;
 
 const SongTitle = styled.Text`
@@ -84,66 +112,55 @@ const SongTitle = styled.Text`
   margin-bottom: 4px;
 `;
 
-const SongChoreographer = styled.Text`
-  font-size: 12px;
-  color: #4b5563;
-  margin-bottom: 2px;
-`;
-
-const SongDetails = styled.Text`
+const SongArtist = styled.Text`
   font-size: 12px;
   color: #6b7280;
 `;
 
-const Duration = styled.Text`
+const SongDuration = styled.Text<SongItemProps>`
   font-size: 12px;
   color: #6b7280;
+  margin: ${(props: SongItemProps) => props.$isRTL ? '0 auto 0 0' : '0 0 0 auto'};
 `;
 
-interface Props {
-  topAlbums: Album[];
+interface MainContentProps {
+  language: 'en' | 'he';
   recentlyPlayed: Song[];
-  onAlbumPress: (album: Album) => void;
-  onSongPress: (song: Song) => void;
+  mostPlayed: Song[];
+  onSongSelect: (song: Song) => void;
 }
 
-export function MainContent({
-  topAlbums,
-  recentlyPlayed,
-  onAlbumPress,
-  onSongPress,
-}: Props) {
-  return (
-    <Container>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <SectionTitle>All Dances</SectionTitle>
-        <AlbumGrid>
-          {topAlbums.map((album) => (
-            <AlbumCard key={album.id} onPress={() => onAlbumPress(album)}>
-              <AlbumContent>
-                <AlbumCover source={{ uri: album.cover }} />
-                <AlbumTitle numberOfLines={1}>{album.title}</AlbumTitle>
-                <ChoreographerText numberOfLines={1}>{album.artist}</ChoreographerText>
-                <SubtitleText numberOfLines={1}>{album.subtitle}</SubtitleText>
-              </AlbumContent>
-            </AlbumCard>
-          ))}
-        </AlbumGrid>
+export function MainContent({ 
+  language, 
+  recentlyPlayed = [], 
+  mostPlayed = [], 
+  onSongSelect 
+}: MainContentProps) {
+  const isRTL = language === 'he';
 
-        <SectionTitle>Recently Added</SectionTitle>
-        <RecentlyPlayedList>
-          {recentlyPlayed.map((song) => (
-            <SongItem key={song.id} onPress={() => onSongPress(song)}>
-              <SongInfo>
-                <SongTitle numberOfLines={1}>{song.title}</SongTitle>
-                <SongChoreographer numberOfLines={1}>{song.artist}</SongChoreographer>
-                <SongDetails numberOfLines={1}>{song.album}</SongDetails>
-              </SongInfo>
-              <Duration>{song.duration}</Duration>
-            </SongItem>
-          ))}
-        </RecentlyPlayedList>
-      </ScrollView>
+  return (
+    <Container $isRTL={isRTL}>
+      <ScrollContainer showsVerticalScrollIndicator={false}>
+        <ContentContainer>
+          {recentlyPlayed?.length > 0 && (
+            <SearchResults
+              songs={recentlyPlayed}
+              language={language}
+              onSongSelect={onSongSelect}
+              title={isRTL ? 'נוגן לאחרונה' : 'Recently Played'}
+            />
+          )}
+
+          {mostPlayed?.length > 0 && (
+            <SearchResults
+              songs={mostPlayed}
+              language={language}
+              onSongSelect={onSongSelect}
+              title={isRTL ? 'הכי מנוגן' : 'Most Played'}
+            />
+          )}
+        </ContentContainer>
+      </ScrollContainer>
     </Container>
   );
 } 

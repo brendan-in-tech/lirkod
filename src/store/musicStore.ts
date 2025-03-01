@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Dance, DanceCollection, fetchAllDancesWithCreators, fetchDanceWithCreators, supabase } from '../lib/supabase';
+import { Dance, DanceCollection, fetchAllDancesWithCreators, fetchDanceWithCreators, supabase, updatePlayStats } from '../lib/supabase';
 import { musicPlayer } from '../services/musicPlayer';
 
 interface DanceStore {
@@ -9,6 +9,7 @@ interface DanceStore {
   isLoading: boolean;
   error: string | null;
   language: 'en' | 'he';
+  currentView: 'home' | 'search';
 
   // Player state
   currentDance: Dance | null;
@@ -20,6 +21,7 @@ interface DanceStore {
 
   // Actions
   setLanguage: (language: 'en' | 'he') => void;
+  setView: (view: 'home' | 'search') => void;
   fetchDances: () => Promise<void>;
   fetchCollections: () => Promise<void>;
   playDance: (dance: Dance, isShort?: boolean) => Promise<void>;
@@ -38,6 +40,7 @@ export const useDanceStore = create<DanceStore>((set, get) => ({
   isLoading: false,
   error: null,
   language: 'en',
+  currentView: 'home',
   currentDance: null,
   isPlaying: false,
   position: 0,
@@ -47,6 +50,7 @@ export const useDanceStore = create<DanceStore>((set, get) => ({
 
   // Actions
   setLanguage: (language) => set({ language }),
+  setView: (view) => set({ currentView: view }),
 
   fetchDances: async () => {
     try {
@@ -83,9 +87,31 @@ export const useDanceStore = create<DanceStore>((set, get) => ({
       await musicPlayer.loadTrack({
         id: dance.id,
         audio_url: audioUrl,
-        duration: dance.duration || 0
+        duration: dance.duration_ms
       });
       await musicPlayer.play();
+
+      // Update play statistics in real-time
+      try {
+        const updatedDance = await updatePlayStats(dance.id);
+        if (updatedDance) {
+          // Update the dance in the local state
+          set(state => ({
+            dances: state.dances.map(d => 
+              d.id === dance.id 
+                ? { ...d, last_played: updatedDance.last_played, times_played: updatedDance.times_played }
+                : d
+            ),
+            currentDance: state.currentDance?.id === dance.id 
+              ? { ...state.currentDance, last_played: updatedDance.last_played, times_played: updatedDance.times_played }
+              : state.currentDance
+          }));
+        }
+      } catch (statsError) {
+        console.error('Failed to update play statistics:', statsError);
+        // Continue playing even if stats update fails
+      }
+
       set({ 
         currentDance: dance,
         isShortVersion: isShort,

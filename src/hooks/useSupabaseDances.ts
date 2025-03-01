@@ -36,20 +36,22 @@ export function useSupabaseDances(lang: 'en' | 'he'): UseSupabaseDances {
 
       console.log('Connection test successful, fetching dances...');
       
-      // Now fetch the actual dances
+      // Now fetch the actual dances with their relationships
       const { data, error: fetchError } = await supabase
         .from('dances')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          choreographer:choreographers_id(id, name_en, name_he, image_url),
+          performer:performers_id(id, name_en, name_he, image_url),
+          composer:composers_id(id, name_en, name_he, image_url),
+          lyricist:lyricists_id(id, name_en, name_he, image_url)
+        `);
 
       if (fetchError) {
         console.error('Failed to fetch dances:', fetchError);
         throw fetchError;
       }
 
-      console.log('Fetch response:', { dataExists: !!data, length: data?.length || 0 });
-
-      // If no dances found, try to insert test data
       if (!data || data.length === 0) {
         console.log('No dances found, attempting to insert test data...');
         try {
@@ -58,11 +60,24 @@ export function useSupabaseDances(lang: 'en' | 'he'): UseSupabaseDances {
           setDances(testData || []);
         } catch (insertError) {
           console.error('Failed to insert test data:', insertError);
-          throw insertError;
         }
       } else {
-        console.log('Setting dances:', data.length);
-        setDances(data);
+        // Transform the data to include creator names directly on the dance object
+        const transformedDances = data.map(dance => ({
+          ...dance,
+          choreographer_name_en: dance.choreographer?.name_en,
+          choreographer_name_he: dance.choreographer?.name_he,
+          choreographer_image_url: dance.choreographer?.image_url,
+          performer_name_en: dance.performer?.name_en,
+          performer_name_he: dance.performer?.name_he,
+          composer_name_en: dance.composer?.name_en,
+          composer_name_he: dance.composer?.name_he,
+          lyricist_name_en: dance.lyricist?.name_en,
+          lyricist_name_he: dance.lyricist?.name_he
+        }));
+        
+        console.log('Setting dances:', transformedDances.length);
+        setDances(transformedDances);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -79,23 +94,25 @@ export function useSupabaseDances(lang: 'en' | 'he'): UseSupabaseDances {
     fetchDances();
   }, []);
 
-  const getUniqueValues = (field: string): string[] => {
+  const getUniqueCreators = (type: 'choreographer' | 'performer' | 'composer' | 'lyricist'): string[] => {
     if (!dances.length) {
-      console.log(`No dances available for field: ${field}`);
+      console.log(`No dances available for ${type}`);
       return [];
     }
+    
+    const nameField = lang === 'en' ? `${type}_name_en` : `${type}_name_he`;
     const values = dances
-      .map(dance => dance[field as keyof Dance] as string)
-      .filter(Boolean)
-      .flatMap(value => value.split(',').map(v => v.trim()))
+      .map(dance => dance[nameField as keyof Dance] as string)
       .filter(Boolean);
     
     return [...new Set(values)].sort();
   };
 
-  const choreographers = getUniqueValues(lang === 'en' ? 'choreographers_en' : 'choreographers_he');
-  const performers = getUniqueValues(lang === 'en' ? 'performers_en' : 'performers_he');
-  const shapes = getUniqueValues(lang === 'en' ? 'shapes_en' : 'shapes_he');
+  const choreographers = getUniqueCreators('choreographer');
+  const performers = getUniqueCreators('performer');
+  const shapes = dances
+    .map(dance => lang === 'en' ? dance.shapes_en : dance.shapes_he)
+    .filter(Boolean);
 
   console.log('Hook state:', {
     dancesCount: dances.length,
@@ -110,7 +127,7 @@ export function useSupabaseDances(lang: 'en' | 'he'): UseSupabaseDances {
     dances,
     choreographers,
     performers,
-    shapes,
+    shapes: [...new Set(shapes)].sort(),
     isLoading,
     error,
     language: lang,

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sidebar } from './Sidebar';
 import { MainContent } from '../home/MainContent';
 import { RightSidebar } from './RightSidebar';
+import { Search } from '../search/Search';
 import { useDanceStore } from '../../store/musicStore';
 import type { Album as UIAlbum, Song as UISong, Artist } from '../../types/music';
 import type { Dance } from '../../lib/supabase';
@@ -21,14 +22,18 @@ const Content = styled.View`
 `;
 
 function convertDanceToSong(dance: Dance, language: 'en' | 'he' = 'en'): UISong {
+  const coverImage = dance.cover_url || dance.choreographer_image_url || 'https://placehold.co/100x100';
   return {
     id: dance.id,
     title: language === 'en' ? dance.name_en : dance.name_he,
     artist: getCreatorName(dance, 'choreographer', language),
-    album: `${dance.year} • ${language === 'en' ? dance.shapes_en : dance.shapes_he}`,
-    duration: formatDuration(dance.duration),
-    albumCover: dance.cover_url || dance.choreographer_image_url || 'https://placehold.co/100x100',
+    album: `${dance.year || ''} • ${language === 'en' ? dance.shapes_en : dance.shapes_he}`,
+    duration: formatDuration(dance.duration || 0),
+    albumCover: coverImage,
+    coverUrl: coverImage,
     created_at: dance.created_at,
+    last_played: dance.last_played,
+    times_played: dance.times_played || 0
   };
 }
 
@@ -44,9 +49,13 @@ function convertDanceToAlbum(dance: Dance, language: 'en' | 'he' = 'en'): UIAlbu
   };
 }
 
-function formatDuration(milliseconds: number): string {
-  const minutes = Math.floor(milliseconds / 60000);
-  const seconds = Math.floor((milliseconds % 60000) / 1000);
+function formatDuration(duration: number): string {
+  if (!duration || isNaN(duration)) return '0:00';
+  
+  // Convert float duration (e.g., 2.32) to minutes and seconds
+  const minutes = Math.floor(duration);
+  const seconds = Math.round((duration % 1) * 100); // Get decimal part and convert to seconds
+  
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
@@ -61,6 +70,7 @@ export function MainLayout() {
     volume,
     language,
     isShortVersion,
+    currentView,
     fetchDances,
     fetchCollections,
     playDance,
@@ -138,16 +148,30 @@ export function MainLayout() {
     <Container>
       <Content>
         <Sidebar onLanguageToggle={toggleLanguage} language={language} />
-        <MainContent
-          topAlbums={dances.map(d => convertDanceToAlbum(d, language))}
-          recentlyPlayed={[...dances]
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 5)
-            .map(d => convertDanceToSong(d, language))
-          }
-          onAlbumPress={handleAlbumPress}
-          onSongPress={handleSongPress}
-        />
+        {currentView === 'search' ? (
+          <Search />
+        ) : (
+          <MainContent
+            language={language}
+            recentlyPlayed={[...dances]
+              .filter(d => d.last_played)
+              .sort((a, b) => {
+                const dateA = a.last_played ? new Date(a.last_played).getTime() : 0;
+                const dateB = b.last_played ? new Date(b.last_played).getTime() : 0;
+                return dateB - dateA;
+              })
+              .slice(0, 5)
+              .map(d => convertDanceToSong(d, language))
+            }
+            mostPlayed={[...dances]
+              .filter(d => d.times_played && d.times_played > 0)
+              .sort((a, b) => (b.times_played || 0) - (a.times_played || 0))
+              .slice(0, 5)
+              .map(d => convertDanceToSong(d, language))
+            }
+            onSongSelect={handleSongPress}
+          />
+        )}
         <RightSidebar
           notifications={[]}
           topArtists={dances
@@ -165,6 +189,8 @@ export function MainLayout() {
             ...convertDanceToSong(currentDance, language),
             duration: formatDuration(duration)
           } : null}
+          dance={currentDance}
+          language={language}
           isPlaying={isPlaying}
           progress={duration > 0 ? position / duration : 0}
           volume={volume}

@@ -2,9 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import styled from 'styled-components/native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../types/navigation';
+import { useDanceStore } from '../../store/musicStore';
 import { useSupabaseDances } from '../../hooks/useSupabaseDances';
 
 interface SidebarProps {
@@ -75,38 +73,34 @@ const MenuText = styled.Text<{ isActive?: boolean }>`
 interface MenuItemData {
   icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
-  screen?: keyof RootStackParamList;
+  view?: 'home' | 'search';
   params?: any;
 }
 
 export function Sidebar({ language, onLanguageToggle }: SidebarProps) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [activeItem, setActiveItem] = React.useState('Home');
+  const { currentView, setView } = useDanceStore();
   const { choreographers, performers, shapes, isLoading, error } = useSupabaseDances(language);
 
   const menuItems: Record<string, MenuItemData[]> = {
     Menu: [
-      { icon: 'home', label: 'Home', screen: 'Home' },
-      { icon: 'search', label: 'Search', screen: 'Search' },
-      { icon: 'explore', label: 'Discover', screen: 'Discover' },
+      { icon: 'home', label: 'Home', view: 'home' },
+      { icon: 'search', label: 'Search', view: 'search' },
+      { icon: 'explore', label: 'Discover' },
     ],
     Categories: [
       { 
         icon: 'people', 
-        label: 'Choreographers', 
-        screen: 'Choreographers',
+        label: 'Choreographers',
         params: { choreographers }
       },
       { 
         icon: 'person', 
-        label: 'Artists', 
-        screen: 'Artists',
+        label: 'Artists',
         params: { performers }
       },
       { 
         icon: 'category', 
-        label: 'Shapes', 
-        screen: 'Shapes',
+        label: 'Shapes',
         params: { shapes }
       },
     ],
@@ -119,15 +113,14 @@ export function Sidebar({ language, onLanguageToggle }: SidebarProps) {
       { icon: 'queue-music', label: 'My Playlists' },
     ],
     General: [
-      { icon: 'settings', label: 'Settings', screen: 'Settings' },
+      { icon: 'settings', label: 'Settings' },
       { icon: 'logout', label: 'Log Out' },
     ],
   };
 
   const handlePress = (item: MenuItemData) => {
-    if (item.screen) {
-      setActiveItem(item.label);
-      navigation.navigate(item.screen, item.params);
+    if (item.view) {
+      setView(item.view);
     }
   };
 
@@ -171,15 +164,15 @@ export function Sidebar({ language, onLanguageToggle }: SidebarProps) {
             {items.map((item) => (
               <MenuItem
                 key={item.label}
-                isActive={activeItem === item.label}
+                isActive={item.view ? currentView === item.view : false}
                 onPress={() => handlePress(item)}
               >
                 <MaterialIcons
                   name={item.icon}
                   size={20}
-                  color={activeItem === item.label ? '#3b82f6' : '#4b5563'}
+                  color={item.view && currentView === item.view ? '#3b82f6' : '#4b5563'}
                 />
-                <MenuText isActive={activeItem === item.label}>
+                <MenuText isActive={item.view ? currentView === item.view : false}>
                   {item.label}
                 </MenuText>
               </MenuItem>

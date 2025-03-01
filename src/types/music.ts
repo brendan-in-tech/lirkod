@@ -1,4 +1,4 @@
-import { Track as SupabaseTrack, Album as SupabaseAlbum, Playlist as SupabasePlaylist } from '../lib/supabase';
+import type { Dance } from '../lib/supabase';
 
 export interface Song {
   id: string;
@@ -7,36 +7,41 @@ export interface Song {
   album: string;
   duration: string;
   albumCover: string;
-  created_at: string;
+  created_at?: string;
+  coverUrl: string;
+  last_played?: string;
+  times_played?: number;
 }
 
-export interface Album extends Omit<SupabaseAlbum, 'cover_url'> {
+export interface Album {
+  id: string;
+  title: string;
+  artist: string;
+  subtitle: string;
   cover: string;
+  tracks: Song[];
+  created_at: string;
 }
 
 export interface Artist {
   id: string;
   name: string;
-  image: string;
 }
 
 export interface Playlist {
   id: string;
   name: string;
   songCount: number;
-  songs: Song[];
 }
 
 export interface Notification {
   id: string;
   title: string;
   description: string;
-  timeAgo: string;
 }
 
 export interface PlayerState {
   currentSong: Song | null;
   isPlaying: boolean;
   progress: number;
-  volume: number;
 } 

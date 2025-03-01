@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ScrollView } from 'react-native';
 import styled from 'styled-components/native';
 import type { Notification, Artist, Song } from '../../types/music';
+import type { Dance } from '../../lib/supabase';
 import { NowPlaying } from '../player/NowPlaying';
 
 const Container = styled.View`
@@ -89,6 +90,8 @@ interface Props {
   notifications: Notification[];
   topArtists: Artist[];
   currentSong: Song | null;
+  dance: Dance | null;
+  language: 'en' | 'he';
   isPlaying: boolean;
   progress: number;
   volume: number;
@@ -108,6 +111,8 @@ export function RightSidebar({
   notifications,
   topArtists,
   currentSong,
+  dance,
+  language,
   isPlaying,
   progress,
   volume,
@@ -165,6 +170,8 @@ export function RightSidebar({
       {currentSong && (
         <NowPlaying
           song={currentSong}
+          dance={dance}
+          language={language}
           isPlaying={isPlaying}
           progress={progress}
           volume={volume}

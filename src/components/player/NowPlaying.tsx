@@ -4,10 +4,23 @@ import { MaterialIcons } from '@expo/vector-icons';
 import styled from 'styled-components/native';
 import type { Song } from '../../types/music';
 import Slider from '@react-native-community/slider';
+import { getDanceTheme } from '../../utils/shapeUtils';
+import { Dance } from '../../lib/supabase';
 
-const Container = styled.View`
+interface ThemeProps {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+}
+
+interface ContainerProps {
+  $theme: ThemeProps;
+}
+
+const Container = styled.View<ContainerProps>`
   padding: 16px;
-  background-color: #fff;
+  background-color: ${(props: ContainerProps) => props.$theme.background};
   border-radius: 12px;
   margin-bottom: 16px;
 `;
@@ -52,10 +65,14 @@ const ControlButton = styled.TouchableOpacity`
   padding: 8px;
 `;
 
-const PlayButton = styled.TouchableOpacity`
+interface PlayButtonProps {
+  $theme: ThemeProps;
+}
+
+const PlayButton = styled.TouchableOpacity<PlayButtonProps>`
   padding: 8px;
   margin: 0 16px;
-  background-color: #3b82f6;
+  background-color: ${(props: PlayButtonProps) => props.$theme.primary};
   border-radius: 24px;
   width: 48px;
   height: 48px;
@@ -98,23 +115,25 @@ const AdditionalControls = styled.View`
 
 interface VersionToggleProps {
   $isActive: boolean;
+  $theme: ThemeProps;
 }
 
 const VersionToggle = styled.TouchableOpacity<VersionToggleProps>`
   padding: 8px 16px;
-  background-color: ${props => props.$isActive ? '#3b82f6' : '#f3f4f6'};
+  background-color: ${(props: VersionToggleProps) => props.$isActive ? props.$theme.primary : '#f3f4f6'};
   border-radius: 20px;
   margin: 0 8px;
 `;
 
 const VersionText = styled.Text<VersionToggleProps>`
   font-size: 14px;
-  color: ${props => props.$isActive ? '#ffffff' : '#4b5563'};
+  color: ${(props: VersionToggleProps) => props.$isActive ? '#ffffff' : props.$theme.primary};
   text-align: center;
 `;
 
 interface Props {
   song: Song | null;
+  dance: Dance | null;
   isPlaying: boolean;
   progress: number;
   volume: number;
@@ -127,10 +146,12 @@ interface Props {
   isShortVersion: boolean;
   formatTime: (milliseconds: number) => string;
   duration: number;
+  language: 'en' | 'he';
 }
 
 export function NowPlaying({
   song,
+  dance,
   isPlaying,
   progress,
   volume,
@@ -143,11 +164,19 @@ export function NowPlaying({
   isShortVersion,
   formatTime,
   duration,
+  language,
 }: Props) {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const previousVolume = React.useRef(volume);
+
+  const theme = dance ? getDanceTheme(dance, language) : {
+    primary: '#3b82f6',
+    secondary: '#60a5fa',
+    accent: '#2563eb',
+    background: '#ffffff'
+  };
 
   const handleVolumePress = () => {
     if (isMuted) {
@@ -169,7 +198,7 @@ export function NowPlaying({
   if (!song) return null;
 
   return (
-    <Container>
+    <Container $theme={theme}>
       <SongInfo>
         <CoverImage source={{ uri: song.albumCover }} />
         <TextContainer>
@@ -192,9 +221,9 @@ export function NowPlaying({
             setIsSeeking(false);
             onSeek(value * duration);
           }}
-          minimumTrackTintColor="#3b82f6"
+          minimumTrackTintColor={theme.primary}
           maximumTrackTintColor="#e5e7eb"
-          thumbTintColor="#3b82f6"
+          thumbTintColor={theme.accent}
         />
         <TimeContainer>
           <TimeText>{formatTime(progress * duration)}</TimeText>
@@ -204,9 +233,9 @@ export function NowPlaying({
 
       <Controls>
         <ControlButton onPress={onPrevious}>
-          <MaterialIcons name="skip-previous" size={32} color="#4b5563" />
+          <MaterialIcons name="skip-previous" size={32} color={theme.primary} />
         </ControlButton>
-        <PlayButton onPress={onPlayPause}>
+        <PlayButton onPress={onPlayPause} $theme={theme}>
           <MaterialIcons 
             name={isPlaying ? "pause" : "play-arrow"} 
             size={32} 
@@ -214,13 +243,13 @@ export function NowPlaying({
           />
         </PlayButton>
         <ControlButton onPress={onNext}>
-          <MaterialIcons name="skip-next" size={32} color="#4b5563" />
+          <MaterialIcons name="skip-next" size={32} color={theme.primary} />
         </ControlButton>
       </Controls>
 
       <VolumeContainer>
         <VolumeButton onPress={handleVolumePress}>
-          <MaterialIcons name={getVolumeIcon()} size={24} color="#4b5563" />
+          <MaterialIcons name={getVolumeIcon()} size={24} color={theme.primary} />
         </VolumeButton>
         <Slider
           style={{ flex: 1, marginHorizontal: 8 }}
@@ -228,18 +257,18 @@ export function NowPlaying({
           maximumValue={1}
           value={volume}
           onValueChange={onVolumeChange}
-          minimumTrackTintColor="#3b82f6"
+          minimumTrackTintColor={theme.primary}
           maximumTrackTintColor="#e5e7eb"
-          thumbTintColor="#3b82f6"
+          thumbTintColor={theme.accent}
         />
       </VolumeContainer>
 
       <AdditionalControls>
-        <VersionToggle $isActive={!isShortVersion} onPress={onToggleVersion}>
-          <VersionText $isActive={!isShortVersion}>Full</VersionText>
+        <VersionToggle $isActive={!isShortVersion} onPress={onToggleVersion} $theme={theme}>
+          <VersionText $isActive={!isShortVersion} $theme={theme}>Full</VersionText>
         </VersionToggle>
-        <VersionToggle $isActive={isShortVersion} onPress={onToggleVersion}>
-          <VersionText $isActive={isShortVersion}>Short</VersionText>
+        <VersionToggle $isActive={isShortVersion} onPress={onToggleVersion} $theme={theme}>
+          <VersionText $isActive={isShortVersion} $theme={theme}>Short</VersionText>
         </VersionToggle>
       </AdditionalControls>
     </Container>

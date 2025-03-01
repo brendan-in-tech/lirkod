@@ -150,7 +150,7 @@ export async function insertDances() {
           shapes_en: 'Circle',
           shapes_he: 'מעגל',
           cover_url: 'https://placehold.co/400',
-          duration: 180000
+          duration: 3.00
         },
         {
           name_en: 'Ahava Ktana',
@@ -165,7 +165,7 @@ export async function insertDances() {
           shapes_en: 'Line',
           shapes_he: 'שורות',
           cover_url: 'https://placehold.co/400',
-          duration: 240000
+          duration: 4.00
         }
       ])
       .select();
@@ -247,26 +247,20 @@ export interface Dance {
   id: string;
   name_en: string;
   name_he: string;
+  choreographer_name_en: string;
+  choreographer_name_he: string;
+  choreographer_image_url?: string;
+  choreographers_id: string;
+  year?: string;
+  shapes_en?: string;
+  shapes_he?: string;
+  duration: number;
   audio_url: string;
   audio_short_url?: string;
-  year: string;
-  // Choreographer
-  choreographers_id: string;
-  choreographer_name_en?: string;
-  choreographer_name_he?: string;
-  choreographer_image_url?: string;
-  // Other creators
-  performers_id: string;
-  composers_id: string;
-  lyricists_id: string;
-  // Other fields
-  shapes_en: string;
-  shapes_he: string;
   cover_url?: string;
-  duration: number;
-  last_played?: string;
-  times_played: number;
   created_at: string;
+  last_played?: string;
+  times_played?: number;
 }
 
 // Helper function to get creator name based on language
@@ -282,7 +276,7 @@ export function getCreatorName(dance: Dance, creatorType: 'choreographer', langu
 // Helper function to get creator image
 export function getCreatorImage(dance: Dance, creatorType: 'choreographer'): string | undefined {
   if (creatorType === 'choreographer') {
-    return dance.choreographer_image_url;
+    return dance.choreographer_name_en || dance.choreographer_name_he || '';
   }
   return undefined;
 }
@@ -368,33 +362,116 @@ export interface PlaylistDance {
 }
 
 export async function insertTestDance() {
+  try {
+    // First, insert creators
+    const { data: choreographer, error: choreographerError } = await supabase
+      .from('choreographers')
+      .insert({
+        name_en: 'Cherf Chaim',
+        name_he: 'צ׳רף חיים',
+        image_url: 'https://placehold.co/400'
+      })
+      .select()
+      .single();
+    if (choreographerError) throw choreographerError;
+
+    const { data: performers, error: performersError } = await supabase
+      .from('performers')
+      .insert({
+        name_en: 'Margi Yehonatan, Kirel Noa',
+        name_he: 'מרגי יהונתן, קירל נועה',
+        image_url: 'https://placehold.co/400'
+      })
+      .select()
+      .single();
+    if (performersError) throw performersError;
+
+    const { data: composers, error: composersError } = await supabase
+      .from('composers')
+      .insert({
+        name_en: 'Margi Yehonatan, Kirel Noa',
+        name_he: 'מרגי יהונתן, קירל נועה',
+        image_url: 'https://placehold.co/400'
+      })
+      .select()
+      .single();
+    if (composersError) throw composersError;
+
+    const { data: lyricists, error: lyricistsError } = await supabase
+      .from('lyricists')
+      .insert({
+        name_en: 'Margi Yehonatan, Kirel Noa',
+        name_he: 'מרגי יהונתן, קירל נועה',
+        image_url: 'https://placehold.co/400'
+      })
+      .select()
+      .single();
+    if (lyricistsError) throw lyricistsError;
+
+    // Then insert dance with creator references
+    const { data, error } = await supabase
+      .from('dances')
+      .insert([
+        {
+          name_en: 'Zikaron Yashan',
+          name_he: 'זיכרון ישן',
+          audio_url: 'https://rokdim.co.il/assets/audios_full/1737186003571__5aee7152-0474-49de-acf0-4ef6eeafafb8.mp3',
+          audio_short_url: 'https://rokdim.co.il/assets/audios_short/1737186003571__306a8225-96da-49a0-a977-c44769e9a978.mp3',
+          year: '2023',
+          choreographers_id: choreographer.id,
+          performers_id: performers.id,
+          composers_id: composers.id,
+          lyricists_id: lyricists.id,
+          shapes_en: 'Circle',
+          shapes_he: 'מעגל',
+          cover_url: 'https://placehold.co/400',
+          duration: 3.00
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error('Error inserting test dance:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in insertTestDance:', error);
+    throw error;
+  }
+}
+
+export async function updatePlayStats(danceId: string) {
+  const now = new Date().toISOString();
+  
+  // First get the current times_played value
+  const { data: currentData, error: fetchError } = await supabase
+    .from('dances')
+    .select('times_played')
+    .eq('id', danceId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching current play count:', fetchError);
+    throw fetchError;
+  }
+
+  const currentTimesPlayed = currentData?.times_played || 0;
+
+  // Then update with the new values
   const { data, error } = await supabase
     .from('dances')
-    .insert([
-      {
-        name_en: 'Zikaron Yashan',
-        name_he: 'זיכרון ישן',
-        audio_url: 'https://rokdim.co.il/assets/audios_full/1737186003571__5aee7152-0474-49de-acf0-4ef6eeafafb8.mp3',
-        audio_short_url: 'https://rokdim.co.il/assets/audios_short/1737186003571__306a8225-96da-49a0-a977-c44769e9a978.mp3',
-        year: '2023',
-        choreographers_en: 'Cherf Chaim',
-        choreographers_he: 'צ׳רף חיים',
-        performers_en: 'Margi Yehonatan, Kirel Noa',
-        performers_he: 'מרגי יהונתן, קירל נועה',
-        composers_en: 'Margi Yehonatan, Kirel Noa',
-        composers_he: 'מרגי יהונתן, קירל נועה',
-        lyricists_en: 'Margi Yehonatan, Kirel Noa',
-        lyricists_he: 'מרגי יהונתן, קירל נועה',
-        shapes_en: 'Circle',
-        shapes_he: 'מעגל',
-        cover_url: 'https://placehold.co/400',
-        duration: 180000 // Will be updated with actual duration when audio loads
-      }
-    ])
-    .select();
+    .update({
+      last_played: now,
+      times_played: currentTimesPlayed + 1
+    })
+    .eq('id', danceId)
+    .select()
+    .single();
 
   if (error) {
-    console.error('Error inserting test dance:', error);
+    console.error('Error updating play stats:', error);
     throw error;
   }
 
